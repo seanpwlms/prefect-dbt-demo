@@ -1,0 +1,10 @@
+version: 2
+
+models:
+  - name: dim_customers
+    columns:
+      - name: c_email_address
+        description: "data type - text"
+        tests:
+          - unique
+          - not_null
