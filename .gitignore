@@ -1,2 +1,4 @@
-env/
+env*
 logs/
+__pycache__
+dbt_packages
