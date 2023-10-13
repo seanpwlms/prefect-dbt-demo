@@ -3,7 +3,7 @@ from prefect import flow
 
 @flow
 def trigger_dbt_flow() -> str:
-    result = DbtCoreOperation(
+    DbtCoreOperation(
         commands=["dbt build -t prod"],
         project_dir="prefect_demo",
         profiles_dir="~/.dbt"
