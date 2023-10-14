@@ -19,6 +19,7 @@ def count_recent_cc_records():
         "select count(1) from snowflake_sample_data.tpcds_sf10tcl.call_center where cc_rec_start_date > current_date - 1"
     )
     time.sleep(1)
+
     return result
 
 # Dynamically build DBT flow 🛠
@@ -43,7 +44,7 @@ def update_dashboard(transformed_data):
     time.sleep(3)
 
 # Parent orchestrator flow 🎻
-@flow(name="🎻 DBT Orchestrator Flow", log_prints=True)
+@flow(name="🎻 DBT Orchestrator Flow", log_prints=True, persist_result=True)
 def dbt_orchestrator_flow():
 
     # Snowflake Task 🏔
@@ -54,15 +55,15 @@ def dbt_orchestrator_flow():
         transformed_data = my_dbt_flow._run()
 
     else:
-        print("No fresh data found") 
+        print("No fresh data found, scheduling another run in 15 minutes.") 
         # Schedule another flow run 15 minutes from now. 🔁
         run_deployment('dbt-parent-flow')
     
     # Update Dashboard 📊
-    update_dashboard(transformed_data)
+    update_dashboard.submit(transformed_data)
 
 
 
 if __name__ == "__main__":
-    # dbt_orchestrator_flow() # Run once for development and testing
-    dbt_orchestrator_flow.serve("my-deployment", interval=1800) # Interval Schedule of 30 minutes
+    dbt_orchestrator_flow() # Run once for development and testing
+    # dbt_orchestrator_flow.serve("my-deployment", interval=1800) # Interval Schedule of 30 minutes
