@@ -1,13 +1,27 @@
 from pathlib import Path
 from prefect.task_runners import SequentialTaskRunner
+from prefect.task_runners import ConcurrentTaskRunner
 from prefect_dbt_flow import dbt_flow
 from prefect_dbt_flow.dbt import DbtProfile, DbtProject
 from prefect import task, flow
+from prefect_snowflake.database import SnowflakeConnector
+from datetime import timedelta
+from prefect.deployments import run_deployment
+import time
 
-@task
-def upstream_task():
-    print('upstream task')
+# Prefect block for configuration storage and retrieval 📦
+snowflake_connector = SnowflakeConnector.load("snowflake-demo-connector")
 
+# Snowflake Task 🏔
+@task(name="❄️ Snowflake Task", cache_expiration=timedelta(minutes=30))
+def count_recent_cc_records():
+    result = snowflake_connector.fetch_one(
+        "select count(1) from snowflake_sample_data.tpcds_sf10tcl.call_center where cc_rec_start_date > current_date - 1"
+    )
+    time.sleep(1)
+    return result
+
+# Dynamically build DBT flow 🛠
 my_dbt_flow = dbt_flow(
     project=DbtProject(
         name="sample_project",
@@ -18,25 +32,29 @@ my_dbt_flow = dbt_flow(
         target="prod",
     ),
     flow_kwargs={
-        "task_runner": SequentialTaskRunner(),
+        "name": "📈 DBT Subflow",
+        "task_runner": ConcurrentTaskRunner(),
     },
 )
 
-@flow
-def my_subflow():
-    print('This is a subflow')
+# Parent orchestrator flow 🎻
+@flow(name="🎻 DBT Orchestrator Flow", log_prints=True)
+def dbt_orchestrator_flow():
 
+    # Snowflake Task 🏔
+    fresh_data = count_recent_cc_records()
 
-@flow(log_prints=True)
-def parent_flow():
+    if fresh_data is not None:
+        # DBT Subflow 🟢
+        my_dbt_flow._run()
 
-    upstream_task()
-
-    my_dbt_flow._run()
-
-    my_subflow()
+    else:
+        print("No fresh data found") 
+        # Schedule another flow run 15 minutes from now. 🔁
+        run_deployment('dbt-parent-flow')
 
 
 
 if __name__ == "__main__":
-    parent_flow()
+    dbt_orchestrator_flow()
+    # dbt_orchestrator_flow.serve("my-deployment", schedule=interval_schedule(timedelta(minutes=15))
