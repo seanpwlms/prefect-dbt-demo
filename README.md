@@ -18,3 +18,8 @@ This repository contains code samples to demonstrate three ways to use Prefect a
 ## Trivial example of waiting for late-arriving data
 
 `daily_dbt_job.py` has a simple example of how we might check for fresh data before kicking off a dbt Cloud job.
+
+TODO:
+
+Add DBT Deps after cding into prefect_demo
+`dbt deps`
