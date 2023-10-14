@@ -1,8 +1,8 @@
 from prefect_dbt.cloud import DbtCloudCredentials
 from prefect_dbt.cloud.jobs import trigger_dbt_cloud_job_run
 from prefect import flow, task
-import time
 from prefect_snowflake.database import SnowflakeConnector
+from prefect.server.schemas.states import Failed
 
 
 snowflake_connector = SnowflakeConnector.load("snowflake-demo-connector")
@@ -15,21 +15,17 @@ def cloud_job(JOB_ID = 424466):
 @task
 def count_recent_cc_records():
     result = snowflake_connector.fetch_one(
-        "select count(1) from snowflake_sample_data.tpcds_sf10tcl.call_center where cc_rec_start_date > current_date - 1"
+        "select cc_rec_start_date > current_date - 1 as is_fresh, max(cc_rec_start_date) as max_date from snowflake_sample_data.tpcds_sf10tcl.call_center group by 1"
     )
     return result
 
-@flow
-def daily_job(retries=3):
-    while retries > 0:
-        fresh_data = count_recent_cc_records()
-        if fresh_data is not None:
-            cloud_job()
-        else:
-            time.sleep(5) # sleep for 5 seconds
-            retries -= 1
-    if retries == 0:
-        raise Exception("No fresh data found after three retries")
+@flow(retries = 3, retry_delay_seconds = 3, log_prints = True)
+def daily_job():
+    fresh_data = count_recent_cc_records()
+    if fresh_data[0]:
+        cloud_job()
+    else:
+        return Failed(message = f'Stale data: most recent date is {str(fresh_data[1])}')
 
 if __name__ == "__main__":
     daily_job()
