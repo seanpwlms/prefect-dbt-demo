@@ -37,6 +37,11 @@ my_dbt_flow = dbt_flow(
     },
 )
 
+@task(name="📊 Update Dashboard")
+def update_dashboard(transformed_data):
+    print("Updating dashboard with transformed data!")
+    time.sleep(3)
+
 # Parent orchestrator flow 🎻
 @flow(name="🎻 DBT Orchestrator Flow", log_prints=True)
 def dbt_orchestrator_flow():
@@ -46,15 +51,18 @@ def dbt_orchestrator_flow():
 
     if fresh_data is not None:
         # DBT Subflow 🟢
-        my_dbt_flow._run()
+        transformed_data = my_dbt_flow._run()
 
     else:
         print("No fresh data found") 
         # Schedule another flow run 15 minutes from now. 🔁
         run_deployment('dbt-parent-flow')
+    
+    # Update Dashboard 📊
+    update_dashboard(transformed_data)
 
 
 
 if __name__ == "__main__":
-    dbt_orchestrator_flow()
-    # dbt_orchestrator_flow.serve("my-deployment", schedule=interval_schedule(timedelta(minutes=15))
+    # dbt_orchestrator_flow() # Run once for development and testing
+    dbt_orchestrator_flow.serve("my-deployment", interval=1800) # Interval Schedule of 30 minutes
