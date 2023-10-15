@@ -7,10 +7,14 @@ from prefect_snowflake.database import SnowflakeConnector
 
 snowflake_connector = SnowflakeConnector.load("snowflake-demo-connector")
 
+
 @flow
-def cloud_job(JOB_ID = 424466):
+def cloud_job(JOB_ID=424466):
     dbt_cloud_credentials = DbtCloudCredentials.load("dbt-cloud-creds")
-    trigger_dbt_cloud_job_run(dbt_cloud_credentials=dbt_cloud_credentials, job_id=JOB_ID)
+    trigger_dbt_cloud_job_run(
+        dbt_cloud_credentials=dbt_cloud_credentials, job_id=JOB_ID
+    )
+
 
 @task
 def count_recent_cc_records():
@@ -19,6 +23,7 @@ def count_recent_cc_records():
     )
     return result
 
+
 @flow
 def daily_job(retries=3):
     while retries > 0:
@@ -26,10 +31,11 @@ def daily_job(retries=3):
         if fresh_data is not None:
             cloud_job()
         else:
-            time.sleep(5) # sleep for 5 seconds
+            time.sleep(5)  # sleep for 5 seconds
             retries -= 1
     if retries == 0:
         raise Exception("No fresh data found after three retries")
+
 
 if __name__ == "__main__":
     daily_job()
