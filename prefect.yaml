@@ -1,0 +1,43 @@
+# Welcome to your prefect.yaml file! You can use this file for storing and managing
+# configuration for deploying your flows. We recommend committing this file to source
+# control along with your flow code.
+
+# Generic metadata about this project
+name: prefect-dbt-demo
+prefect-version: 2.13.1
+
+# build section allows you to manage and build docker images
+build:
+- prefect_docker.deployments.steps.build_docker_image:
+    requires: prefect-docker>=0.3.1
+    id: build-image
+    dockerfile: auto
+    image_name: docker.io/taycurran/retries-dep
+    tag: latest
+
+# push section allows you to manage if and how this project is uploaded to remote locations
+push:
+- prefect_docker.deployments.steps.push_docker_image:
+    requires: prefect-docker>=0.3.1
+    image_name: '{{ build-image.image_name }}'
+    tag: '{{ build-image.tag }}'
+
+# pull section allows you to provide instructions for cloning this project in remote locations
+pull:
+- prefect.deployments.steps.set_working_directory:
+    directory: /opt/prefect/prefect-dbt-demo
+
+# the deployments section allows you to provide configuration for deploying flows
+deployments:
+- name: retries-dep
+  version: null
+  tags: []
+  description: null
+  entrypoint: orchestrate/worker_dep.py:dbt_orchestrator_retries_enabled
+  parameters: {}
+  work_pool:
+    name: test
+    work_queue_name: null
+    job_variables:
+      image: '{{ build-image.image }}'
+  schedule: null

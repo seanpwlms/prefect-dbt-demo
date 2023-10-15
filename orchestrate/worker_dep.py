@@ -3,11 +3,11 @@ from prefect.task_runners import SequentialTaskRunner
 from prefect.task_runners import ConcurrentTaskRunner
 from prefect_dbt_flow import dbt_flow
 from prefect_dbt_flow.dbt import DbtProfile, DbtProject
-from prefect import task, flow
+from prefect import task, flow, runtime
 from prefect_snowflake.database import SnowflakeConnector
 from datetime import timedelta
 from prefect.deployments import run_deployment
-from prefect_dbt_flow.dbt import DbtProfile, DbtProject
+from prefect_dbt_flow.dbt import DbtProfile, DbtProject, DbtDagOptions
 import time
 import datetime
 
@@ -35,7 +35,7 @@ def count_recent_cc_records():
     return result
 
 
-# Dynamically build dbt subflow 🛠
+# Dynamically build DBT flow 🛠
 my_dbt_flow = dbt_flow(
     project=DbtProject(
         name="sample_project",
@@ -45,8 +45,12 @@ my_dbt_flow = dbt_flow(
     profile=DbtProfile(
         target="prod",
     ),
+    # Causes DBT Subflow to Fail
+    dag_options=DbtDagOptions(
+        run_test_after_model=True,
+    ),
     flow_kwargs={
-        "name": "📈 dbt subflow",
+        "name": "📈 DBT Subflow",
         "task_runner": ConcurrentTaskRunner(),
     },
 )
@@ -75,8 +79,11 @@ def shipping_flow():
 
 
 # parent orchestrator flow 🎻
-@flow(name="🎻 dbt Orchestrator Flow", log_prints=True, persist_result=True)
-def dbt_orchestrator_flow():
+@flow(name="🎻 dbt Orchestrator Flow with Retry", log_prints=True, persist_result=True)
+def dbt_orchestrator_retries_enabled(simulate_failure: bool = False):
+    if runtime.flow_run.run_count > 1:
+        simulate_failure = False
+
     # airbyte connection task 🐙
     data_transfer = airbyte_connection_task.submit()
 
@@ -85,7 +92,42 @@ def dbt_orchestrator_flow():
 
     if fresh_data is not None:
         # dbt subflow 🟢
-        transformed_data = my_dbt_flow(wait_for=[fresh_data])
+        if simulate_failure:
+            my_dbt_flow = dbt_flow(
+                project=DbtProject(
+                    name="sample_project",
+                    project_dir=Path() / "prefect_demo",
+                    profiles_dir=Path.home() / ".dbt",
+                ),
+                profile=DbtProfile(
+                    target="prod",
+                ),
+                # Causes DBT Subflow to Fail
+                dag_options=DbtDagOptions(
+                    run_test_after_model=True,
+                ),
+                flow_kwargs={
+                    "name": "📈 DBT Subflow",
+                    "task_runner": ConcurrentTaskRunner(),
+                },
+            )
+            transformed_data = my_dbt_flow(wait_for=[fresh_data])
+        else:
+            my_dbt_flow = dbt_flow(
+                project=DbtProject(
+                    name="sample_project",
+                    project_dir=Path() / "prefect_demo",
+                    profiles_dir=Path.home() / ".dbt",
+                ),
+                profile=DbtProfile(
+                    target="prod",
+                ),
+                flow_kwargs={
+                    "name": "📈 dbt subflow",
+                    "task_runner": ConcurrentTaskRunner(),
+                },
+            )
+            transformed_data = my_dbt_flow(wait_for=[fresh_data])
 
     else:
         print("No fresh data found, scheduling another run in 15 minutes.")
@@ -104,5 +146,8 @@ def dbt_orchestrator_flow():
 
 
 if __name__ == "__main__":
-    dbt_orchestrator_flow()  # Run once for development and testing
-    # dbt_orchestrator_flow.serve("my-deployment", interval=1800, tags=['serve']) # Interval Schedule of 30 minutes
+    dbt_orchestrator_retries_enabled(
+        simulate_failure=True
+    )  # Run once for development and testing
+
+    # dbt_orchestrator_retries_enabled.serve("retry-deployment", interval=1800, tags=['worker']) # Interval Schedule of 30 minutes
