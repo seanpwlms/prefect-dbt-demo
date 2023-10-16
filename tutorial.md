@@ -66,6 +66,7 @@ def trigger_dbt_flow() -> str:
         project_dir="prefect_demo",
         profiles_dir="~/.dbt"
     ).run()
+    return result
 
 if __name__ == "__main__":
     trigger_dbt_flow()
@@ -115,8 +116,7 @@ from prefect_dbt.cloud import DbtCloudCredentials
 from prefect_dbt.cloud.jobs import trigger_dbt_cloud_job_run
 from prefect import flow, task
 from prefect_snowflake.database import SnowflakeConnector
-from prefect.server.schemas.states import Failed
-
+from prefect.states import Failed
 
 snowflake_connector = SnowflakeConnector.load("snowflake-demo-connector")
 
