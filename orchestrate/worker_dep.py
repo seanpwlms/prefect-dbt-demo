@@ -146,8 +146,8 @@ def dbt_orchestrator_retries_enabled(simulate_failure: bool = False):
 
 
 if __name__ == "__main__":
-    dbt_orchestrator_retries_enabled(
-        simulate_failure=True
-    )  # Run once for development and testing
+    # dbt_orchestrator_retries_enabled(
+    #     simulate_failure=True
+    # )  # Run once for development and testing
 
-    # dbt_orchestrator_retries_enabled.serve("retry-deployment", interval=1800, tags=['worker']) # Interval Schedule of 30 minutes
+    dbt_orchestrator_retries_enabled.serve("retry-deployment", interval=1800, tags=['worker']) # Interval Schedule of 30 minutes

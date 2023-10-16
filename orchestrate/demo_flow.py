@@ -104,5 +104,5 @@ def dbt_orchestrator_flow():
 
 
 if __name__ == "__main__":
-    dbt_orchestrator_flow()  # Run once for development and testing
-    # dbt_orchestrator_flow.serve("my-deployment", interval=1800, tags=['serve']) # Interval Schedule of 30 minutes
+    # dbt_orchestrator_flow()  # Run once for development and testing
+    dbt_orchestrator_flow.serve("my-deployment", interval=1800, tags=['serve']) # Interval Schedule of 30 minutes
